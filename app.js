@@ -7,7 +7,7 @@ const DEFAULT_CONFIG = Object.freeze({
   key: "sb_publishable_l6dGQauyIddNfLVu-VkHRg_s6gVI25B",
 });
 const state = {
-  client: null, channel: null, id: null, name: "Player", room: "",
+  client: null, channel: null, id: crypto.randomUUID(), userId: null, name: "Player", room: "",
   host: false, peer: null, stage: "home", selectedGame: "rps", rps: null, ttt: null,
 };
 
@@ -112,11 +112,11 @@ async function openHistory() {
   try {
     if (!state.client) state.client = makeClient(config.url, config.key);
     const user = await ensureIdentity(state.client);
-    state.id = user.id;
+    state.userId = user.id;
     const { data, error } = await state.client
       .from("game_history")
       .select("game_id,opponent_name,game_type,variant,outcome,player_score,opponent_score,room_code,completed_at")
-      .eq("user_id", state.id)
+      .eq("user_id", state.userId)
       .order("completed_at", { ascending: false })
       .limit(100);
     if (error) throw error;
@@ -148,8 +148,8 @@ function renderHistory(records) {
 async function saveHistoryRecord(game, outcome, playerScore, opponentScore, variant) {
   const record = {
     game_id: game.gameId,
-    user_id: state.id,
-    opponent_id: state.peer.id,
+    user_id: state.userId,
+    opponent_id: state.peer.userId,
     player_name: state.name,
     opponent_name: state.peer.name || (state.host ? "Player 2" : "Host"),
     game_type: game.type,
@@ -205,7 +205,7 @@ async function beginConnection(create) {
   try {
     state.client = makeClient(config.url, config.key);
     const user = await ensureIdentity(state.client);
-    state.id = user.id;
+    state.userId = user.id;
     await connectRoom();
   } catch (error) {
     homeError(`Could not connect: ${authErrorMessage(error)}`);
@@ -243,7 +243,7 @@ async function connectRoom() {
     .on("broadcast", { event: "ttt_state" }, ({ payload }) => receiveTttState(payload))
     .subscribe(async (status, error) => {
       if (status === "SUBSCRIBED") {
-        await channel.track({ id: state.id, name: state.name, host: state.host });
+        await channel.track({ id: state.id, userId: state.userId, name: state.name, host: state.host });
         setOnline(true);
         if (state.stage === "connecting") renderLobby();
       } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
@@ -316,14 +316,14 @@ function startSelectedGame() {
     state.rps = null;
     state.ttt = { type, gameId, historySaved: false, historyError: "", board: Array(9).fill(""), turn: state.id, winner: "", draw: false };
   }
-  broadcast("game_start", { type, gameId, host: state.id, guest: state.peer.id, hostName: state.name, guestName: state.peer.name || "Player 2" });
+  broadcast("game_start", { type, gameId, host: state.id, guest: state.peer.id, hostUserId: state.userId, guestUserId: state.peer.userId, hostName: state.name, guestName: state.peer.name || "Player 2" });
   state.stage = "game";
   renderGame();
 }
 
 function receiveGameStart(payload) {
   if (!payload || payload.host === state.id) return;
-  state.peer = { id: payload.host, name: payload.hostName, host: true };
+  state.peer = { id: payload.host, userId: payload.hostUserId, name: payload.hostName, host: true };
   if (payload.type === "rps") {
     state.ttt = null;
     state.rps = { type: payload.type, gameId: payload.gameId, historySaved: false, historyError: "", scores: { [payload.host]: 0, [state.id]: 0 }, move: null, peerMove: null, busy: false, finished: false, classic: true, last: "Choose your move." };
