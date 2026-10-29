@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101521">
+  <title>Arcade Rooms</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="Arcade Rooms home" id="brand-home">
+        <span class="brand-mark">AR</span>
+        <span>ARCADE<span class="brand-light"> ROOMS</span></span>
+      </a>
+      <div class="top-right">
+        <span id="connection-indicator" class="connection"><i></i> NOT CONNECTED</span>
+        <button id="history-button" class="text-button" type="button">History</button>
+        <button id="home-button" class="text-button" type="button">Home</button>
+      </div>
+    </header>
+    <main id="app" aria-live="polite"></main>
+    <footer>ONLINE ARCADE <span>·</span> TWO PLAYERS <span>·</span> ONE ROOM CODE</footer>
+  </div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
