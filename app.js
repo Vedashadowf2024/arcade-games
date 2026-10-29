@@ -3,6 +3,10 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 const app = document.querySelector("#app");
 const indicator = document.querySelector("#connection-indicator");
 const CONFIG_KEY = "arcade-rooms-supabase-config";
+const DEFAULT_CONFIG = Object.freeze({
+  url: "https://untercgbaahwjfcjpnjr.supabase.co",
+  key: "sb_publishable_l6dGQauyIddNfLVu-VkHRg_s6gVI25B",
+});
 const state = {
   client: null, channel: null, id: null, name: "Player", room: "",
   host: false, peer: null, stage: "home", selectedGame: "rps", rps: null, ttt: null,
@@ -44,7 +48,7 @@ function home() {
     <section class="home-grid">
       <div class="panel">
         <h2>Connect to your arcade</h2>
-        <p class="panel-intro">Enter your Supabase project details, then create or join a room.</p>
+        <p class="panel-intro">Supabase is already connected. Enter your player name, then create or join a room.</p>
         <label class="field"><span>PLAYER NAME</span><input id="player-name" maxlength="20" placeholder="e.g. Alex" autocomplete="nickname"></label>
         <div class="two-fields">
           <label class="field"><span>SUPABASE PROJECT URL</span><input id="project-url" placeholder="https://your-project.supabase.co" autocomplete="url"></label>
@@ -56,7 +60,7 @@ function home() {
           <button id="join-room" class="button secondary">Join room</button>
         </div>
         <p id="home-error" class="error"></p>
-        <p class="tiny-note">The project URL and publishable key are saved in this browser for reconnecting. They are public client values; never enter a secret or service-role key.</p>
+        <p class="tiny-note">This site is configured with your project's public client key. It is visible in browser code by design; never put a secret or service-role key here.</p>
       </div>
       <div class="panel">
         <h2>Games in the room</h2>
@@ -86,8 +90,8 @@ function home() {
 function readConfig() {
   try {
     const saved = JSON.parse(localStorage.getItem(CONFIG_KEY) || "null");
-    return saved?.url && saved?.key ? saved : null;
-  } catch { return null; }
+    return saved?.url && saved?.key ? saved : DEFAULT_CONFIG;
+  } catch { return DEFAULT_CONFIG; }
 }
 
 function saveConfig(url, key) {
@@ -113,13 +117,12 @@ async function ensureIdentity(client) {
 }
 
 async function openHistory() {
-  let config = readConfig();
   const urlInput = document.querySelector("#project-url");
   const keyInput = document.querySelector("#project-key");
-  if (!config && urlInput?.value.trim() && keyInput?.value.trim()) {
-    config = { url: urlInput.value.trim().replace(/\/$/, ""), key: keyInput.value.trim() };
-    saveConfig(config.url, config.key);
-  }
+  const config = urlInput?.value.trim() && keyInput?.value.trim()
+    ? { url: urlInput.value.trim().replace(/\/$/, ""), key: keyInput.value.trim() }
+    : readConfig();
+  if (config) saveConfig(config.url, config.key);
   state.stage = "history";
   setOnline(Boolean(state.channel));
   app.innerHTML = `<section class="history-page"><div class="history-heading"><div><div class="eyebrow">Your arcade</div><h1>Game history</h1><p class="subtext">Loading your saved matches…</p></div><button id="history-home" class="button ghost">Back</button></div><p id="history-error" class="error"></p><div id="history-list" class="history-list"></div></section>`;
