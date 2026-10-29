@@ -2,7 +2,6 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 const app = document.querySelector("#app");
 const indicator = document.querySelector("#connection-indicator");
-const CONFIG_KEY = "arcade-rooms-supabase-config";
 const DEFAULT_CONFIG = Object.freeze({
   url: "https://untercgbaahwjfcjpnjr.supabase.co",
   key: "sb_publishable_l6dGQauyIddNfLVu-VkHRg_s6gVI25B",
@@ -50,17 +49,14 @@ function home() {
         <h2>Connect to your arcade</h2>
         <p class="panel-intro">Supabase is already connected. Enter your player name, then create or join a room.</p>
         <label class="field"><span>PLAYER NAME</span><input id="player-name" maxlength="20" placeholder="e.g. Alex" autocomplete="nickname"></label>
-        <div class="two-fields">
-          <label class="field"><span>SUPABASE PROJECT URL</span><input id="project-url" placeholder="https://your-project.supabase.co" autocomplete="url"></label>
-          <label class="field"><span>PUBLIC CLIENT KEY</span><input id="project-key" placeholder="sb_publishable_..." autocomplete="off"></label>
-        </div>
+        <div class="notice">Supabase is preconfigured for this arcade. No project URL or key entry is needed.</div>
         <label class="field"><span>ROOM CODE <small>(for joining)</small></span><input id="room-input" maxlength="6" placeholder="Enter a friend's code" autocomplete="off"></label>
         <div class="button-row">
           <button id="create-room" class="button primary">Create a room</button>
           <button id="join-room" class="button secondary">Join room</button>
         </div>
         <p id="home-error" class="error"></p>
-        <p class="tiny-note">This site is configured with your project's public client key. It is visible in browser code by design; never put a secret or service-role key here.</p>
+        <p class="tiny-note">Your project uses a public client key built into this app. It is safe for browser use; no secret key is included.</p>
       </div>
       <div class="panel">
         <h2>Games in the room</h2>
@@ -72,11 +68,6 @@ function home() {
         <div class="notice">Needs Supabase Realtime and anonymous sign-ins. To enable persistent match history, run <strong>supabase_schema.sql</strong> in your project's SQL Editor.</div>
       </div>
     </section>`;
-  const savedConfig = readConfig();
-  if (savedConfig) {
-    document.querySelector("#project-url").value = savedConfig.url;
-    document.querySelector("#project-key").value = savedConfig.key;
-  }
   document.querySelector("#brand-home").onclick = (event) => { event.preventDefault(); disconnect(); home(); };
   document.querySelector("#home-button").onclick = () => { disconnect(); home(); };
   document.querySelector("#history-button").onclick = openHistory;
@@ -88,15 +79,7 @@ function home() {
 }
 
 function readConfig() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(CONFIG_KEY) || "null");
-    return saved?.url && saved?.key ? saved : DEFAULT_CONFIG;
-  } catch { return DEFAULT_CONFIG; }
-}
-
-function saveConfig(url, key) {
-  try { localStorage.setItem(CONFIG_KEY, JSON.stringify({ url, key })); }
-  catch { /* The current connection still works if browser storage is unavailable. */ }
+  return DEFAULT_CONFIG;
 }
 
 function makeClient(url, key) {
@@ -117,12 +100,7 @@ async function ensureIdentity(client) {
 }
 
 async function openHistory() {
-  const urlInput = document.querySelector("#project-url");
-  const keyInput = document.querySelector("#project-key");
-  const config = urlInput?.value.trim() && keyInput?.value.trim()
-    ? { url: urlInput.value.trim().replace(/\/$/, ""), key: keyInput.value.trim() }
-    : readConfig();
-  if (config) saveConfig(config.url, config.key);
+  const config = readConfig();
   state.stage = "history";
   setOnline(Boolean(state.channel));
   app.innerHTML = `<section class="history-page"><div class="history-heading"><div><div class="eyebrow">Your arcade</div><h1>Game history</h1><p class="subtext">Loading your saved matches…</p></div><button id="history-home" class="button ghost">Back</button></div><p id="history-error" class="error"></p><div id="history-list" class="history-list"></div></section>`;
@@ -218,17 +196,14 @@ function homeError(message) {
 
 async function beginConnection(create) {
   const name = document.querySelector("#player-name").value.trim() || "Player";
-  const url = document.querySelector("#project-url").value.trim().replace(/\/$/, "");
-  const key = document.querySelector("#project-key").value.trim();
+  const config = readConfig();
   const requestedRoom = document.querySelector("#room-input").value.trim().toUpperCase();
-  if (!url.startsWith("https://") || !key) return homeError("Enter a valid HTTPS project URL and its public client key.");
   if (!create && requestedRoom.length !== 6) return homeError("Enter the six-character room code from your friend.");
   state.name = name.slice(0, 20);
-  saveConfig(url, key);
   state.room = create ? randomCode() : requestedRoom;
   state.host = create;
   try {
-    state.client = makeClient(url, key);
+    state.client = makeClient(config.url, config.key);
     const user = await ensureIdentity(state.client);
     state.id = user.id;
     await connectRoom();
